@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>La Ruta de Brumildo</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f0f4f8;
+            font-family: 'Press Start 2P', cursive;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        #maze {
+            position: relative;
+            width: 600px;
+            height: 450px;
+            background-color: #d1d8e0;
+            border: 5px solid #007bbd;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .path {
+            position: absolute;
+            background-color: #ffffff;
+            border: 1px dashed #e0e0e0;
+        }
+
+        #car {
+            position: absolute;
+            width: 25px;
+            height: 18px;
+            background-color: #3498db;
+            border-radius: 3px;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 8px;
+            color: white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        #start-box {
+            position: absolute;
+            width: 80px;
+            height: 40px;
+            background-color: #007bbd;
+            top: 25px;
+            left: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 6px;
+            color: white;
+            border: 2px solid white;
+            text-align: center;
+            z-index: 5;
+        }
+
+        #finish-box {
+            position: absolute;
+            width: 80px;
+            height: 40px;
+            background-color: #e74c3c;
+            bottom: 25px;
+            right: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 6px;
+            color: white;
+            border: 2px solid white;
+            text-align: center;
+            z-index: 5;
+        }
+
+        .titulo {
+            margin-bottom: 20px;
+            color: #007bbd;
+            font-size: 14px;
+            text-shadow: 1px 1px white;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="titulo" id="status-text">MISIÓN: LLEGAR AL SORIANA</div>
+
+    <div id="maze">
+        <div class="path" style="left: 0; top: 20px; width: 160px; height: 50px;"></div> 
+        <div class="path" style="left: 110px; top: 20px; width: 50px; height: 160px;"></div>
+        <div class="path" style="left: 110px; top: 130px; width: 250px; height: 50px;"></div>
+        <div class="path" style="left: 320px; top: 50px; width: 50px; height: 130px;"></div>
+        <div class="path" style="left: 320px; top: 50px; width: 230px; height: 50px;"></div>
+        <div class="path" style="left: 500px; top: 50px; width: 50px; height: 350px;"></div>
+        <div class="path" style="left: 200px; top: 260px; width: 350px; height: 50px;"></div>
+        <div class="path" style="left: 200px; top: 260px; width: 50px; height: 150px;"></div>
+        <div class="path" style="left: 200px; top: 360px; width: 400px; height: 70px;"></div>
+
+        <div id="start-box">BRUMILDO ESTÁ AQUÍ</div>
+        <div id="finish-box">SORIANA</div>
+
+        <div id="car">B</div>
+    </div>
+
+    <script>
+        const car = document.getElementById('car');
+        const paths = document.querySelectorAll('.path');
+        const finishBox = document.getElementById('finish-box');
+        const statusText = document.getElementById('status-text');
+
+        let x = 90; 
+        let y = 35;
+        let angle = 0;
+        const speed = 10;
+        let juegoTerminado = false; // ESTA ES LA CORRECCIÓN
+
+        function update() {
+            car.style.left = x + 'px';
+            car.style.top = y + 'px';
+            car.style.transform = `rotate(${angle}deg)`;
+
+            // Si ya ganamos, no volvemos a checar hasta que se resetee
+            if (juegoTerminado) return;
+
+            const carRect = car.getBoundingClientRect();
+            const finishRect = finishBox.getBoundingClientRect();
+
+            if (carRect.right > finishRect.left && carRect.left < finishRect.right &&
+                carRect.bottom > finishRect.top && carRect.top < finishRect.bottom) {
+                
+                juegoTerminado = true; // Bloqueamos nuevas alertas
+                statusText.innerText = "¡BRUMILDO LLEGÓ AL SORIANA!";
+                statusText.style.color = "#e74c3c";
+                
+                setTimeout(() => {
+                    alert("¡Brumildo llegó exitosamente al Soriana!");
+                    // Resetear Brumildo
+                    x = 90; y = 35; 
+                    statusText.innerText = "MISIÓN: LLEGAR AL SORIANA";
+                    statusText.style.color = "#007bbd";
+                    juegoTerminado = false;
+                    update();
+                }, 100);
+            }
+        }
+
+        function canMove(nextX, nextY) {
+            const carLeft = nextX;
+            const carRight = nextX + 25;
+            const carTop = nextY;
+            const carBottom = nextY + 18;
+
+            let onPath = false;
+            paths.forEach(path => {
+                const pLeft = parseInt(path.style.left);
+                const pTop = parseInt(path.style.top);
+                const pRight = pLeft + parseInt(path.style.width);
+                const pBottom = pTop + parseInt(path.style.height);
+
+                if (carLeft >= pLeft && carRight <= pRight && 
+                    carTop >= pTop && carBottom <= pBottom) {
+                    onPath = true;
+                }
+            });
+            return onPath;
+        }
+
+        window.addEventListener('keydown', (e) => {
+            // Si el juego está en pausa por el alert, no nos movemos
+            if (juegoTerminado) return;
+
+            let nextX = x;
+            let nextY = y;
+
+            if (e.key === 'ArrowRight') { nextX += speed; angle = 0; }
+            if (e.key === 'ArrowLeft') { nextX -= speed; angle = 180; }
+            if (e.key === 'ArrowUp') { nextY -= speed; angle = 270; }
+            if (e.key === 'ArrowDown') { nextY += speed; angle = 90; }
+
+            if (canMove(nextX, nextY)) {
+                x = nextX;
+                y = nextY;
+                update();
+            }
+        });
+
+        update();
+    </script>
+</body>
+</html>
