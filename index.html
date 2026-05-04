@@ -14,6 +14,7 @@
             justify-content: center;
             height: 100vh;
             margin: 0;
+            overflow: hidden;
         }
 
         #maze {
@@ -44,6 +45,7 @@
             font-size: 8px;
             color: white;
             box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: transform 0.1s;
         }
 
         #start-box {
@@ -85,12 +87,19 @@
             color: #007bbd;
             font-size: 14px;
             text-shadow: 1px 1px white;
+            text-align: center;
+        }
+
+        .controles {
+            margin-top: 15px;
+            font-size: 8px;
+            color: #7f8c8d;
         }
     </style>
 </head>
 <body>
 
-    <div class="titulo" id="status-text">MISIÓN: LLEGAR AL SORIANA</div>
+    <div class="titulo" id="status-text">MISIÓN: LLEGAR A LA UNIVERSIDAD<br><span style="font-size: 8px;">(Usa las flechas para moverte)</span></div>
 
     <div id="maze">
         <div class="path" style="left: 0; top: 20px; width: 160px; height: 50px;"></div> 
@@ -104,10 +113,12 @@
         <div class="path" style="left: 200px; top: 360px; width: 400px; height: 70px;"></div>
 
         <div id="start-box">BRUMILDO ESTÁ AQUÍ</div>
-        <div id="finish-box">SORIANA</div>
+        <div id="finish-box">UPAEP</div>
 
         <div id="car">B</div>
     </div>
+
+    <div class="controles">Un sonido se reproducirá al llegar a la meta</div>
 
     <script>
         const car = document.getElementById('car');
@@ -119,14 +130,56 @@
         let y = 35;
         let angle = 0;
         const speed = 10;
-        let juegoTerminado = false; // ESTA ES LA CORRECCIÓN
+        let juegoTerminado = false;
+        let audioIniciado = false;
 
+        // --- SISTEMA DE AUDIO SINTÉTICO ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        let mainThemeNode = null;
+
+        function playNote(freq, duration, type = 'square', volume = 0.1) {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(volume, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
+        }
+
+        function startMainTheme() {
+            if (audioIniciado) return;
+            audioIniciado = true;
+            
+            // Un pequeño loop retro
+            setInterval(() => {
+                if (juegoTerminado) return;
+                const now = audioCtx.currentTime;
+                // Melodía simple
+                [261, 329, 392, 523].forEach((f, i) => {
+                    setTimeout(() => {
+                        if(!juegoTerminado) playNote(f, 0.4, 'triangle', 0.05);
+                    }, i * 500);
+                });
+            }, 2000);
+        }
+
+        function playWinSound() {
+            const notes = [523, 659, 783, 1046]; // Acorde de Do Mayor ascendente
+            notes.forEach((note, i) => {
+                setTimeout(() => playNote(note, 0.6, 'square', 0.1), i * 150);
+            });
+        }
+
+        // --- LÓGICA DEL JUEGO ---
         function update() {
             car.style.left = x + 'px';
             car.style.top = y + 'px';
             car.style.transform = `rotate(${angle}deg)`;
 
-            // Si ya ganamos, no volvemos a checar hasta que se resetee
             if (juegoTerminado) return;
 
             const carRect = car.getBoundingClientRect();
@@ -135,19 +188,20 @@
             if (carRect.right > finishRect.left && carRect.left < finishRect.right &&
                 carRect.bottom > finishRect.top && carRect.top < finishRect.bottom) {
                 
-                juegoTerminado = true; // Bloqueamos nuevas alertas
-                statusText.innerText = "¡BRUMILDO LLEGÓ AL SORIANA!";
+                juegoTerminado = true;
+                statusText.innerHTML = "¡BRUMILDO LLEGÓ A SU HOGAR!<br>🏆 GANADOR 🏆";
                 statusText.style.color = "#e74c3c";
                 
+                playWinSound(); // Sonido de victoria
+
                 setTimeout(() => {
-                    alert("¡Brumildo llegó exitosamente al Soriana!");
-                    // Resetear Brumildo
+                    alert("¡Brumildo llegó exitosamente a su hogar!");
                     x = 90; y = 35; 
-                    statusText.innerText = "MISIÓN: LLEGAR AL SORIANA";
+                    statusText.innerHTML = "MISIÓN: LLEGAR A LA UNIVERSIDAD<br><span style='font-size: 8px;'>(Usa las flechas para moverte)</span>";
                     statusText.style.color = "#007bbd";
                     juegoTerminado = false;
                     update();
-                }, 100);
+                }, 800);
             }
         }
 
@@ -173,7 +227,11 @@
         }
 
         window.addEventListener('keydown', (e) => {
-            // Si el juego está en pausa por el alert, no nos movemos
+            if (!audioIniciado) {
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                startMainTheme();
+            }
+
             if (juegoTerminado) return;
 
             let nextX = x;
